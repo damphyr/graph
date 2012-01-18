@@ -121,7 +121,7 @@ class TestGraph < MiniTest::Unit::TestCase
     graph << subgraph
 
     assert_equal graph, subgraph.graph
-    assert_includes graph.subgraphs, subgraph
+    assert_equal graph.subgraphs[subgraph.name], subgraph
   end
 
   def test_nodes
@@ -177,6 +177,37 @@ class TestGraph < MiniTest::Unit::TestCase
     assert_equal graph, s.graph
     assert_equal "blah", s.name
     assert_equal 42, n
+  end
+  
+  def test_merge_graph
+    g=digraph do
+      edge 'a','b'
+      edge 'd','a'
+      node 'a'
+    end
+    d=digraph do
+      edge 'a','c'
+      edge 'a','b'
+      edge 'c','b'
+      node 'a'
+      node 'b'
+    end
+    g.merge!(d)
+    assert_equal(4, g.nodes.size)
+    assert_equal(g.nodes.keys.sort,['a','b','c','d'].sort)
+    assert_equal(3, g.edges.size)
+    assert_equal(2, g.edges['a'].size)
+    assert_equal(0, g.edges['b'].size)
+    assert_equal(1, g.edges['c'].size)
+    assert_equal(1, g.edges['d'].size)
+  end
+  
+  def test_single_subgraph
+    g=digraph "t" do 
+      subgraph "blah"
+      subgraph "blah"
+    end
+    assert_equal 1, g.subgraphs.size
   end
 
   def test_cluster

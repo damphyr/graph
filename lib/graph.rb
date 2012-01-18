@@ -127,7 +127,7 @@ class Graph
   def initialize name = nil, graph = nil, &block
     @name = name
     @graph = graph
-    graph << self if graph
+    
     @nodes  = Hash.new { |h,k| h[k] = Node.new self, k }
     @edges  = Hash.new { |h,k|
       h[k] = Hash.new { |h2, k2| h2[k2] = Edge.new self, self[k], self[k2] }
@@ -135,20 +135,44 @@ class Graph
     @graph_attribs = []
     @node_attribs  = []
     @edge_attribs  = []
-    @subgraphs     = []
+    @subgraphs     = {}
 
     self.scheme = graph.scheme if graph
     node_attribs << scheme if scheme
-
     instance_eval(&block) if block
+    
+    graph << self if graph
   end
+  
+  ##
+  # Merge graph into the current graph. 
+  # All attributes are simply aggregated, 
+  # subgraphs with the same name are merged
+  # For nodes with the same name in the same subgraph 
+  # the last definition wins
+  
+  def merge! graph
+    @nodes.merge!(graph.nodes)
+    graph.edges.each{ |k,v| @edges[k].merge!(v) }
+    @graph_attribs+=graph.graph_attribs
+    @node_attribs+=graph.node_attribs
+    @edge_attribs+=graph.edge_attribs
+    graph.subgraphs.each{|subgraph| self<<subgraph}
+    @graph_attribs.uniq!
+    @node_attribs.uniq!
+    @edge_attribs.uniq!
+  end 
 
   ##
   # Push a subgraph into the current graph. Sets the subgraph's graph to self.
 
   def << subgraph
-    subgraphs << subgraph
     subgraph.graph = self
+    if subgraphs[subgraph.name]
+      subgraphs[subgraph.name].merge!(subgraph)
+    else
+      subgraphs[subgraph.name]=subgraph
+    end
   end
 
   ##
@@ -355,8 +379,8 @@ class Graph
       result << "    edge [ #{edge_attribs.join(", ")} ];"
     end
 
-    subgraphs.each do |line|
-      result << "    #{line};"
+    subgraphs.each do |k,v|
+      result << "    #{v};"
     end
 
     nodes.each do |name, node|
